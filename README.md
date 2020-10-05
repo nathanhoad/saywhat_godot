@@ -42,6 +42,7 @@ The returned line will have the following structure:
 - **character**: String
 - **dialogue**: String
 - **mutation**: String
+- **mutate()**: run the mutation
 - **next_node_id**: String
 - **options**: Array of DialogueOption:
   - **index**: int, index in the array after condition checks have removed failed options
@@ -52,7 +53,7 @@ The returned line will have the following structure:
 
 Mutations are for updating game state or running sequences (or both).
 
-When running mutations with `DialogueManager.mutate(dialogue.mutation)` it is recommended to yield for "completed" so that it doesn't matter if the mutation is a simple function or a sequence with its own yields.
+When running mutations with `dialogue.mutate()` it is recommended to yield for "completed" so that it doesn't matter if the mutation is a simple function or a sequence with its own yields.
 
 To implement a mutation in your game you just need a function on either the game state object or the current scene that matches the mutations name in your dialogue.
 
@@ -152,7 +153,7 @@ func show_dialogue(key: String) -> void:
 			next_node_id = yield(balloon, "dialogue_next")
 
 		DialogueManager.TYPE_MUTATION:
-			yield(DialogueManager.mutate(dialogue.mutation), "completed")
+			yield(dialogue.mutate(), "completed")
 			# Mutations only have one next_node_id
 			next_node_id = dialogue.next_node_id
 
