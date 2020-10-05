@@ -107,7 +107,7 @@ func show_dialogue(key: String) -> void:
 	var dialogue = DialogueManager.get_line(key)
 
 	# End conversation
-	if dialogue.size() == 0:
+	if dialogue == null:
 		var camera := get_tree().current_scene.find_node("Camera")
 		yield(camera.return_to_target(), "completed")
 		dialogue_is_showing = false
@@ -121,19 +121,19 @@ func show_dialogue(key: String) -> void:
 
 	# Run the line
 	var next_node_id = ""
-	match dialogue.get("type"):
+	match dialogue.type:
 		DialogueManager.TYPE_DIALOGUE:
 			var balloon := DialogueBalloon.instance()
 			balloon.dialogue = dialogue
 			add_child(balloon)
 			# The balloon might have response options so we have to get the
-      # next node id from it once it's ready
+			# next node id from it once it's ready
 			next_node_id = yield(balloon, "dialogue_next")
 
 		DialogueManager.TYPE_MUTATION:
-			yield(DialogueManager.mutate(dialogue.get("mutation")), "completed")
+			yield(DialogueManager.mutate(dialogue.mutation), "completed")
 			# Mutations only have one next_node_id
-			next_node_id = dialogue.get("next_node_id")
+			next_node_id = dialogue.next_node_id
 
 	show_dialogue(next_node_id)
 ```

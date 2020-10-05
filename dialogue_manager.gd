@@ -10,32 +10,40 @@ var resource : DialogueResource
 var game_state : Node
 
 
-func get_line(key: String) -> Dictionary:
+func get_line(key: String) -> DialogueLine:
 	assert(resource != null)
 
 	var dialogue = resource.lines.get(key)
 	
 	if dialogue == null:
-		return {}
+		return null
 	
 	# Skip over nodes that fail their condition
 	if not check(dialogue.get("condition", "")):
 		return get_line(dialogue.get("next_node_id"))
 	
+	# Set up a line object
+	var line = DialogueLine.new()
+	line.type = dialogue.get("type", TYPE_DIALOGUE)
+	line.character = dialogue.get("character", "")
+	line.dialogue = dialogue.get("dialogue", "")
+	line.mutation = dialogue.get("mutation", "")
+	line.next_node_id = dialogue.get("next_node_id", "")
+	
 	# Inject the next node's options if they have any
 	var next_dialogue = resource.lines.get(dialogue.get("next_node_id"))
 	if next_dialogue != null and next_dialogue.get("type") == TYPE_OPTIONS:
-		var options := []
-		for option in next_dialogue.get("options"):
-			if check(option.get("condition", "")):
-				# Make sure the next node id is not null
-				if option.get("next_node_id") == null:
-					option["next_node_id"] = ""
-				options.append(option)
+		var next_index := 0
+		for o in next_dialogue.get("options"):
+			if check(o.get("condition", "")):
+				var option = DialogueOption.new()
+				option.index = next_index
+				option.prompt = o.get("prompt")
+				option.next_node_id = o.get("next_node_id", "")
+				line.options.append(option)
+				next_index += 1
 		
-		dialogue["options"] = options
-	
-	return dialogue
+	return line
 
 
 
@@ -138,6 +146,10 @@ func mutate(mutation: String) -> void:
 func match_type(value, type):
 	match type:
 		TYPE_BOOL:
+			if value.to_lower() == "false":
+				return false
+			if value.to_lower() == "true":
+				return true
 			return bool(value)
 		
 		TYPE_STRING:
