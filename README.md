@@ -29,26 +29,38 @@ Then you can get the dialogue from a given key (copied from the SayWhat editor):
 var line : DialogueLine = DialogueManager.get_line("a1debbe0-e9ff-492c-bd54-7c2ffeac634c")
 ```
 
-The returned line will have the following keys:
-
-```
-type: String, "dialogue" or "mutation"
-character: String
-dialogue: String
-mutation: String
-next_node_id: String
-options : Array of DialogueOption
-	var index: int, index in the array after condition checks have removed failed options
-	var prompt: String
-	var next_node_id: String
-```
-
-If the line has a condition on it (eg. `some_variable == 42`) then the dialogue manager will check with the given `game_state` node to see
-if `game_state.some_variable` has a value of 42. If it does it will return that line as a dictionary, otherwise it will move on to that line's
+If the line had a condition on it (eg. `some_variable == 42`) then the dialogue manager will check with the given `game_state` node to see
+if `game_state.some_variable` has a value of 42. If it does it will return that line as a DialogueLine object, otherwise it will move on to that line's
 `next_node_id` (and so on, until a line passes its condition).
 
 If the next line after a valid line of dialogue is a response options list then that list will be filtered by each option's condition checks
 and then grafted onto the line.
+
+The returned line will have the following structure:
+
+- **type**: String, "dialogue" or "mutation"
+- **character**: String
+- **dialogue**: String
+- **mutation**: String
+- **next_node_id**: String
+- **options**: Array of DialogueOption:
+  - **index**: int, index in the array after condition checks have removed failed options
+  - **prompt**: String
+  - **next_node_id**: String
+
+### Mutations
+
+Mutations are for updating game state or running sequences (or both).
+
+When running mutations with `DialogueManager.mutate(dialogue.mutation)` it is recommended to yield for "completed" so that it doesn't matter if the mutation is a simple function or a sequence with its own yields.
+
+To implement a mutation in your game you just need a function on either the game state object or the current scene that matches the mutations name in your dialogue.
+
+So, a mutation in the dialogue like `[do animate Player look_around]` would look for a function called `animate` and then run it with a single array arg, `["Player", "look_around"]`.
+
+## Example
+
+If the dictionary in our dialogue resource contained something like:
 
 ```
 {
@@ -87,30 +99,24 @@ and then grafted onto the line.
 }
 ```
 
-Assuming `GameState.some_variable != 42` and running `DialogueManager.get_line("first")` we would end up with this dictionary:
+Then, assuming `GameState.some_variable != 42` and running `DialogueManager.get_line("first")` we would end up with this line:
 
 ```
-{
-  id: "second",
-  type: "dialogue",
-  character: "Coco",
-  dialogue: "This dialogue will have a response options list added to it.",
-  options: [
-    {
-      prompt: "Ok",
-      next_node_id: ""
-    },
-    {
-      prompt: "What about 42?",
-      condition: "some_variable != 42",
-      next_node_id: ""
-    },
-    {
-      prompt: "Start again",
-      next_node_id: "first"
-    }
-  ]
-}
+type: "dialogue",
+character: "Coco",
+dialogue: "This dialogue will have a response options list added to it.",
+options: [
+  (
+    prompt: "Ok",
+    next_node_id: ""
+  ), (
+    prompt: "What about 42?",
+    next_node_id: ""
+  ), (
+    prompt: "Start again",
+    next_node_id: "first"
+  )
+]
 ```
 
 Where the line with ID `first` is bypassed because it fails its condition check (whereas the response option passes its check so it gets included).
