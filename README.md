@@ -26,11 +26,26 @@ DialogueManager.game_state = GameState
 Then you can get the dialogue from a given key (copied from the SayWhat editor):
 
 ```gdscript
-var line : Dictionary = DialogueManager.get_line("a1debbe0-e9ff-492c-bd54-7c2ffeac634c")
+var line : DialogueLine = DialogueManager.get_line("a1debbe0-e9ff-492c-bd54-7c2ffeac634c")
+```
+
+The returned line will have the following keys:
+
+```
+type: String, "dialogue" or "mutation"
+character: String
+dialogue: String
+mutation: String
+next_node_id: String
+options : Array of DialogueOption
+	var index: int, index in the array after condition checks have removed failed options
+	var prompt: String
+	var next_node_id: String
 ```
 
 If the line has a condition on it (eg. `some_variable == 42`) then the dialogue manager will check with the given `game_state` node to see
-if `game_state.some_variable` has a value of 42. If it does it will return that line as a dictionary, otherwise it will move on to that line's `next_node_id` (and so on, until a line passes its condition).
+if `game_state.some_variable` has a value of 42. If it does it will return that line as a dictionary, otherwise it will move on to that line's
+`next_node_id` (and so on, until a line passes its condition).
 
 If the next line after a valid line of dialogue is a response options list then that list will be filtered by each option's condition checks
 and then grafted onto the line.
