@@ -125,24 +125,15 @@ Where the line with ID `first` is bypassed because it fails its condition check 
 It's up to you to implement the actual dialogue rendering and input control by I have something like this (where rendering the dialogue and handling user input is done by my DialogueBalloon scene):
 
 ```gdscript
-func show_dialogue(key: String) -> void:
+func show_dialogue(key: String, is_first_line: bool = true) -> void:
 	var dialogue = DialogueManager.get_line(key)
 
-	# End conversation
-	if dialogue == null:
-		var camera := get_tree().current_scene.find_node("Camera")
-		yield(camera.return_to_target(), "completed")
-		dialogue_is_showing = false
-		emit_signal("dialogue_finished")
-		return
-
 	# Start conversation
-	if not dialogue_is_showing:
-		dialogue_is_showing = true
+	if is_first_line:
 		emit_signal("dialogue_started")
 
 	# Run the line
-	var next_node_id = ""
+	var next_node_id = dialogue.next_node_id
 	match dialogue.type:
 		DialogueManager.TYPE_DIALOGUE:
 			var balloon := DialogueBalloon.instance()
@@ -150,14 +141,20 @@ func show_dialogue(key: String) -> void:
 			add_child(balloon)
 			# The balloon might have response options so we have to get the
 			# next node id from it once it's ready
-			next_node_id = yield(balloon, "dialogue_next")
+			next_node_id = yield(balloon, "dialogue_actioned")
 
 		DialogueManager.TYPE_MUTATION:
 			yield(dialogue.mutate(), "completed")
-			# Mutations only have one next_node_id
-			next_node_id = dialogue.next_node_id
 
-	show_dialogue(next_node_id)
+	# End conversation
+	if next_node_id == "":
+		var camera := get_tree().current_scene.find_node("Camera")
+		yield(camera.return_to_target(), "completed")
+		emit_signal("dialogue_finished")
+
+	# Next line
+	else:
+		show_dialogue(next_node_id, false)
 ```
 
 ## Contributors
