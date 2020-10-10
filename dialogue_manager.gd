@@ -1,6 +1,10 @@
 extends Node
 
 
+signal dialogue_started
+signal dialogue_finished
+
+
 const TYPE_DIALOGUE = "dialogue"
 const TYPE_MUTATION = "mutation"
 const TYPE_OPTIONS = "options"
@@ -8,6 +12,8 @@ const TYPE_OPTIONS = "options"
 
 var resource : DialogueResource
 var game_state : Node
+
+var is_dialogue_running := false setget set_is_dialogue_running
 
 
 func get_line(key: String) -> DialogueLine:
@@ -33,18 +39,51 @@ func get_line(key: String) -> DialogueLine:
 	# Inject the next node's options if they have any
 	var next_dialogue = resource.lines.get(dialogue.get("next_node_id"))
 	if next_dialogue != null and next_dialogue.get("type") == TYPE_OPTIONS:
-		var next_index := 0
 		for o in next_dialogue.get("options"):
 			if check(o.get("condition", "")):
 				var option = DialogueOption.new()
-				option.index = next_index
 				option.prompt = o.get("prompt")
 				option.next_node_id = o.get("next_node_id", "")
 				line.options.append(option)
-				next_index += 1
 		
 	return line
 
+
+# Step through lines and run any mutations until we either 
+# hit some dialogue or the end of the conversation
+func get_next_dialogue_line(key: String) -> DialogueLine:
+	var dialogue = get_line(key)
+	
+	yield(get_tree(), "idle_frame")
+	
+	self.is_dialogue_running = true
+	
+	# If our dialogue is nothing then we hit the end
+	if dialogue == null or not dialogue.is_valid():
+		self.is_dialogue_running = false
+		return null
+	
+	# Run the mutation if it is one
+	if dialogue.type == DialogueManager.TYPE_MUTATION:
+		yield(dialogue.mutate(), "completed")
+		if dialogue.next_node_id != "":
+			return get_next_dialogue_line(dialogue.next_node_id)
+		else:
+			# End the conversation
+			self.is_dialogue_running = false
+			return null
+	else:
+		return dialogue
+
+
+func set_is_dialogue_running(value: bool) -> void:
+	if is_dialogue_running != value:
+		if value:
+			emit_signal("dialogue_started")
+		else:
+			emit_signal("dialogue_finished")
+			
+	is_dialogue_running = value
 
 
 # Check if a condition is met
