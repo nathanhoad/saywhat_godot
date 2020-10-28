@@ -1,4 +1,4 @@
-class_name DialogueOption
+class_name DialogueResponse
 extends Object
 
 

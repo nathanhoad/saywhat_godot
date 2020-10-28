@@ -7,7 +7,8 @@ signal dialogue_finished
 
 const TYPE_DIALOGUE = "dialogue"
 const TYPE_MUTATION = "mutation"
-const TYPE_OPTIONS = "options"
+const TYPE_RESPONSES = "responses"
+const TYPE_GOTO = "goto"
 
 
 var resource : DialogueResource
@@ -28,6 +29,10 @@ func get_line(key: String) -> DialogueLine:
 	if not check(dialogue.get("condition", "")):
 		return get_line(dialogue.get("next_node_id"))
 	
+	# Check for inline node jumps
+	if dialogue.get("type") == TYPE_GOTO and check(dialogue.get("condition", "")):
+		return get_line(dialogue.get("go_to_node_id", ""))
+	
 	# Set up a line object
 	var line = DialogueLine.new()
 	line.type = dialogue.get("type", TYPE_DIALOGUE)
@@ -36,15 +41,19 @@ func get_line(key: String) -> DialogueLine:
 	line.mutation = dialogue.get("mutation", "")
 	line.next_node_id = dialogue.get("next_node_id", "")
 	
-	# Inject the next node's options if they have any
+	# Inject the next node's responses if they have any
 	var next_dialogue = resource.lines.get(dialogue.get("next_node_id"))
-	if next_dialogue != null and next_dialogue.get("type") == TYPE_OPTIONS:
-		for o in next_dialogue.get("options"):
+	if next_dialogue != null and next_dialogue.get("type") == TYPE_RESPONSES:
+		for o in next_dialogue.get("responses"):
 			if check(o.get("condition", "")):
-				var option = DialogueOption.new()
-				option.prompt = o.get("prompt")
-				option.next_node_id = o.get("next_node_id", "")
-				line.options.append(option)
+				var response = DialogueResponse.new()
+				response.prompt = o.get("prompt")
+				response.next_node_id = o.get("next_node_id", "")
+				line.responses.append(response)
+	
+	# If there is only one response then it has to point to the next node
+	if line.responses.size() == 1:
+		line.next_node_id = line.responses[0].next_node_id
 		
 	return line
 
@@ -59,13 +68,13 @@ func get_next_dialogue_line(key: String) -> DialogueLine:
 	self.is_dialogue_running = true
 	
 	# If our dialogue is nothing then we hit the end
-	if dialogue == null or not dialogue.is_valid():
+	if dialogue == null or not is_valid(dialogue):
 		self.is_dialogue_running = false
 		return null
 	
 	# Run the mutation if it is one
-	if dialogue.type == DialogueManager.TYPE_MUTATION:
-		yield(dialogue.mutate(), "completed")
+	if dialogue.type == TYPE_MUTATION:
+		yield(mutate(dialogue.mutation), "completed")
 		if dialogue.next_node_id != "":
 			return get_next_dialogue_line(dialogue.next_node_id)
 		else:
@@ -98,12 +107,22 @@ func check(condition: String) -> bool:
 	var key : String = found.strings[found.names.get("key")]
 	var state_value
 	
+	var current_scene = get_tree().current_scene
+	
 	if is_method(game_state, key):
-		state_value = game_state.call(key)
-	elif is_method(get_tree().current_scene, key):
-		state_value = get_tree().current_scene.call(key)
-	else:
+		var parts = Array(condition.split(" "))
+		var args = parts.slice(1, parts.size() - 1)
+		state_value = game_state.call(key, args)
+	elif is_method(current_scene, key):
+		var parts = Array(condition.split(" "))
+		var args = parts.slice(1, parts.size() - 1)
+		state_value = current_scene.call(key, args)
+	elif is_property(game_state, key):
 		state_value = game_state.get(key)
+	elif is_property(current_scene, key):
+		state_value = current_scene.get(key)
+	else:
+		assert(false, "'" + key +  "' is not a method or a property on game state or the current scene.")
 	
 	# Simple checks like "is_thing" and "!is_thing"
 	if found.names.has("negate"):
@@ -176,6 +195,8 @@ func mutate(mutation: String) -> void:
 			var result = scene.call(key, args)
 			if result is GDScriptFunctionState and result.is_valid():
 				yield(result, "completed")
+		else:
+			assert(false, "'" + key +  "' mutation method not found on game state or current scene")
 	
 	# Wait one frame to give the dialogue handler a chance to yield
 	yield(get_tree(), "idle_frame")
@@ -200,6 +221,30 @@ func match_type(value, type):
 		TYPE_REAL:
 			return float(value)
 
+
+# Check if a dialogue line contains meaninful information
+func is_valid(line: DialogueLine) -> bool:
+	if line.type == "":
+		return false
+	if line.type == TYPE_DIALOGUE and line.dialogue == "":
+		return false
+	if line.type == TYPE_MUTATION and line.mutation == "":
+		return false
+	if line.type == TYPE_RESPONSES and line.responses.size() == 0:
+		return false
+	return true
+
+
+# Check if a given property exists
+func is_property(thing: Object, name: String) -> bool:
+	if thing == null:
+		return false
+	
+	for p in thing.get_property_list():
+		if p.name == name:
+			return true
+	return false
+		
 
 # Check if a given method exists
 func is_method(thing: Object, name: String) -> bool:

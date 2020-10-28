@@ -40,7 +40,7 @@ The returned line in `dialogue` will have the following properties:
 - **character**: String
 - **dialogue**: String
 - **next_node_id**: String
-- **options**: Array (DialogueOption):
+- **responses**: Array (DialogueOption):
   - **prompt**: String
   - **next_node_id**: String
 
@@ -49,13 +49,14 @@ It's up to you to implement the actual dialogue rendering and input control.
 I have a `DialogueBalloon` scene that I instance that handles all of the rendering and user input:
 
 ```gdscript
-func show_dialogue(key: String) -> void:
-	var dialogue = yield(DialogueManager.get_next_dialogue_line(key), "completed")
+# Show a line of dialogue from a given ID from SayWhat
+func show_dialogue(id: String) -> void:
+	var dialogue = yield(DialogueManager.get_next_dialogue_line(id), "completed")
 	if dialogue != null:
 		var balloon := DialogueBalloon.instance()
 		balloon.dialogue = dialogue
 		add_child(balloon)
-		# Dialogue might have options so we have to wait and see
+		# Dialogue might have response options so we have to wait and see
 		# what the player choose
 		show_dialogue(yield(balloon, "dialogue_actioned"))
 ```
