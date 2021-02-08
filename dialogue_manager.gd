@@ -29,9 +29,15 @@ func get_line(key: String) -> DialogueLine:
 	if not check(dialogue.get("condition", "")):
 		return get_line(dialogue.get("next_node_id"))
 	
-	# Check for inline node jumps
+	# Evaluate early exits
 	if dialogue.get("type") == TYPE_GOTO and check(dialogue.get("condition", "")):
 		return get_line(dialogue.get("go_to_node_id", ""))
+	
+	# No dialogue and only one node is the same as an early exit
+	if dialogue.get("type") == TYPE_RESPONSES:
+		var responses = extract_responses(dialogue)
+		if responses.size() == 1:
+			return get_line(responses[0].next_node_id)
 	
 	# Set up a line object
 	var line = DialogueLine.new()
@@ -43,19 +49,26 @@ func get_line(key: String) -> DialogueLine:
 	
 	# Inject the next node's responses if they have any
 	var next_dialogue = resource.lines.get(dialogue.get("next_node_id"))
-	if next_dialogue != null and next_dialogue.get("type") == TYPE_RESPONSES:
-		for o in next_dialogue.get("responses"):
-			if check(o.get("condition", "")):
-				var response = DialogueResponse.new()
-				response.prompt = o.get("prompt")
-				response.next_node_id = o.get("next_node_id", "")
-				line.responses.append(response)
+	line.responses = extract_responses(next_dialogue)
 	
 	# If there is only one response then it has to point to the next node
 	if line.responses.size() == 1:
 		line.next_node_id = line.responses[0].next_node_id
 		
 	return line
+
+
+# Get a list of valid responses from a dialogue node
+func extract_responses(dialogue: Dictionary) -> Array:
+	var responses : Array = []
+	if dialogue != null and dialogue.get("type") == TYPE_RESPONSES:
+		for o in dialogue.get("responses"):
+			if check(o.get("condition", "")):
+				var response = DialogueResponse.new()
+				response.prompt = o.get("prompt")
+				response.next_node_id = o.get("next_node_id", "")
+				responses.append(response)
+	return responses
 
 
 # Step through lines and run any mutations until we either 
@@ -109,14 +122,14 @@ func check(condition: String) -> bool:
 	
 	var current_scene = get_tree().current_scene
 	
-	if is_method(game_state, key):
+	if is_method(current_scene, key):
 		var parts = Array(condition.split(" "))
 		var args = parts.slice(1, parts.size() - 1)
-		state_value = game_state.call(key, args)
-	elif is_method(current_scene, key):
+		return current_scene.call(key, args)
+	elif is_method(game_state, key):
 		var parts = Array(condition.split(" "))
 		var args = parts.slice(1, parts.size() - 1)
-		state_value = current_scene.call(key, args)
+		return game_state.call(key, args)
 	elif is_property(game_state, key):
 		state_value = game_state.get(key)
 	elif is_property(current_scene, key):
@@ -187,14 +200,23 @@ func mutate(mutation: String) -> void:
 		var args = parts.slice(1, parts.size() - 1)
 		
 		var scene = get_tree().current_scene
-		if is_method(game_state, key):
+		
+		# Built in wait mutation
+		if key == "wait":
+			yield(get_tree().create_timer(float(args[0])), "timeout")
+			
+		# Otherwise check for defined mutations
+		elif is_method(game_state, key):
 			var result = game_state.call(key, args)
 			if result is GDScriptFunctionState and result.is_valid():
 				yield(result, "completed")
+				
 		elif is_method(scene, key):
 			var result = scene.call(key, args)
 			if result is GDScriptFunctionState and result.is_valid():
 				yield(result, "completed")
+		
+		# Or fail with a hint of what's wrong
 		else:
 			assert(false, "'" + key +  "' mutation method not found on game state or current scene")
 	
