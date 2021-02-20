@@ -25,6 +25,10 @@ DialogueManager.resource = preload("res://text/dialogue.tres")
 DialogueManager.game_state = GameState
 ```
 
+### Example project
+
+Check out <https://github.com/nathanhoad/saywhat_godot_example> to see a quick example of how the dialogue manager can be used to show dialogue on the screen (and handle mutations).
+
 ### Getting dialogue
 
 The easiest way of getting a line of dialogue to display is by yielding to `get_next_dialogue_line` using an ID that you can copy from the SayWhat dialogue editor:
