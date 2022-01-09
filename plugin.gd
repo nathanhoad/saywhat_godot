@@ -7,4 +7,5 @@ func _enter_tree():
 
 
 func _exit_tree():
+	DialogueManager.cleanup()
 	remove_autoload_singleton("DialogueManager")
