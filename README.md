@@ -80,6 +80,12 @@ If you have a mutation in the dialogue editor like `do some_variable = 1` then y
 
 If you have a mutation like `do animate("Character", "cheer")` then you will need a method on one of the `game_state`s or the current scene that matches the signature `func animate(character: String, animation: String) -> void:`. The argument `character` will be given `"Character"` and `animation` will be given `"cheer"`.
 
+### Translations
+
+By default, all dialogue and response prompts will be run through Godot's `tr` function to provide translations. 
+
+You can turn this off by setting `DialogueManager.auto_translate = false` but beware, if it is off you may need to handle your own variable replacements if using manual translation keys. You can use `DialogueManager.replace_values(line)` or `DialogueManager.replace_values(response)` to replace text variable markers with their values.
+
 ## Contributors
 
 [Nathan Hoad](https://nathanhoad.net)

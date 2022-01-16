@@ -17,6 +17,7 @@ const TYPE_ERROR = "error"
 var resource: DialogueResource
 var game_states: Array = []
 var is_strict: bool = true
+var auto_translate: bool = true
 
 var is_dialogue_running := false setget set_is_dialogue_running
 
@@ -59,6 +60,18 @@ func get_next_dialogue_line(key: String, override_resource: DialogueResource = n
 		return dialogue
 
 
+func replace_values(line_or_response) -> String:
+	if line_or_response is Line:
+		var line: Line = line_or_response
+		return get_replacements(line.dialogue, line.replacements)
+	elif line_or_response is Response:
+		var response: Response = line_or_response
+		return get_replacements(response.prompt, response.replacements)
+	else:
+		return ""
+	
+
+
 func _ready() -> void:
 	# Cache the known Node2D properties
 	_node_properties = ["Script Variables"]
@@ -96,7 +109,7 @@ func get_line(key: String, local_resource: DialogueResource) -> Line:
 		return get_line(data.get("next_id"), local_resource)
 	
 	# Set up a line object
-	var line = Line.new(data)
+	var line = Line.new(data, auto_translate)
 	
 	# No dialogue and only one node is the same as an early exit
 	if data.get("type") == Line.TYPE_RESPONSE:
@@ -108,7 +121,7 @@ func get_line(key: String, local_resource: DialogueResource) -> Line:
 	
 	# Replace any variables in the dialogue text
 	if data.get("type") == Line.TYPE_DIALOGUE and data.has("replacements"):
-		line.dialogue = get_replacements(line.dialogue, data.get("replacements"))
+		line.dialogue = replace_values(line)
 	
 	# Inject the next node's responses if they have any
 	var next_line = local_resource.lines.get(line.next_id)
@@ -273,7 +286,8 @@ func get_responses(ids: Array, local_resource: DialogueResource) -> Array:
 	for id in ids:
 		var data = local_resource.lines.get(id)
 		if data.get("condition") == null or check(data.get("condition")):
-			var response = Response.new(data)
+			var response = Response.new(data, auto_translate)
+			response.prompt = replace_values(response)
 			# Add as a child so that it gets cleaned up automatically
 			add_child(response)
 			responses.append(response)

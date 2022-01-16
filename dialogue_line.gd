@@ -13,18 +13,20 @@ var mutation: Dictionary
 
 var character: String
 var dialogue: String
+var replacements: Array
 
 var responses: Array = []
 
 
-func _init(data: Dictionary) -> void:
+func _init(data: Dictionary, should_translate: bool = true) -> void:
 	type = data.get("type")
 	next_id = data.get("next_id")
 	
 	match data.get("type"):
 		TYPE_DIALOGUE:
 			character = data.get("character")
-			dialogue = data.get("text")
+			dialogue = tr(data.get("text")) if should_translate else data.get("text")
+			replacements = data.get("replacements")
 			
 		TYPE_MUTATION:
 			mutation = data.get("mutation")
