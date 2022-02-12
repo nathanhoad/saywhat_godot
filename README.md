@@ -1,3 +1,10 @@
+----
+
+### 📣 You should now use [Godot Dialogue Manager](https://github.com/nathanhoad/godot_dialogue_manager) instead. 📣
+It has more features and is better integrated into Godot.
+
+----
+
 ![SayWhat logo](assets/logo.svg)
 
 # SayWhat addon for Godot
